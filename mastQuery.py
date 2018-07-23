@@ -5,22 +5,28 @@ Created on Thu Jul 19 11:16:19 2018
 
 @author: kcooper
 """
-
 from astroquery.mast import Observations
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 import numpy as np
 import pandas as pd
-##print(obsTable)
-resolvedName = "MESSIER 083"
-obsTable = Observations.query_criteria(objectname=resolvedName, calib_level=3, dataRights="public", obs_collection="HST", instrument_name=["ACS/WFC", "WFC3/UVIS"], em_min=[3e-07, 9.7e-07], em_max=[3e-07, 9.7e-07], filters=["%W"])
-#for i in range(len(obsTable)):
- #   poly = obsTable['s_region'][n]
-#poly = obsTable['s_region'][11]
-#polygon = poly[13:117]
-chandraSources = pd.read_csv("M83sources.csv")
-x = chandraSources['sourceRA']
-y = chandraSources['sourceDec']
+
+data = pd.read_csv("chandraSources.csv")
+chandraSources = pd.DataFrame(data)
+##resolvedName = pd.read_csv() ###
+
+def dowload_sources(resolvedName):
+    for i in resolvedName:
+        obsTable = Observations.query_criteria(objectname=i, calib_level=3, dataRights="public", obs_collection="HST", instrument_name=["ACS/WFC", "WFC3/UVIS"], em_min=[3e-07, 9.7e-07], em_max=[3e-07, 9.7e-07], filters=["%W"])
+        chandraSources = chandraSources.loc[chandraSources['resolvedObject'] == i]
+        x = chandraSources['sourceRA']
+        y = chandraSources['sourceDec']
+        filter_products()
+#resolvedName = "MESSIER 083"
+#obsTable = Observations.query_criteria(objectname=resolvedName, calib_level=3, dataRights="public", obs_collection="HST", instrument_name=["ACS/WFC", "WFC3/UVIS"], em_min=[3e-07, 9.7e-07], em_max=[3e-07, 9.7e-07], filters=["%W"])
+#chandraSources = chandraSources.loc[chandraSources['resolvedObject'] == resolvedName]
+#x = chandraSources['sourceRA']
+#y = chandraSources['sourceDec']
 def create_poly():
     m=0
     mark = []
@@ -139,4 +145,5 @@ def filter_products():
     obs = obsTable['obsid']
     dataProductsByID = Observations.get_product_list(obs)
     dataProductsByID = Observations.filter_products(dataProductsByID, obs_id=obsids, productSubGroupDescription="DRZ")
-    print(len(dataProductsByID))
+    ##Observations.download_products(dataProductsByID) ## SPECIFY filepath!!!
+    ##print(len(dataProductsByID))
