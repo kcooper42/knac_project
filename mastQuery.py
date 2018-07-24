@@ -53,10 +53,12 @@ def create_poly():
         poly = obsTable['s_region'][m]
         poly = poly.split()
         poly.pop(0)
-        # check whether the new first item in the list is a float, and if not, pop it from the list
+        polygon = poly
+        # if the item of the list after 'POLYGON' is not a float, send the coordinates through point_in_poly
         if is_float(list[0]) == False:
-            polygon = poly
-            polygon.pop(0)
+            # pop all items at the beginning of the list that are not floats
+            while is_float(list[0]) == False:
+                polygon.pop(0)
             polygon = [float(i) for i in polygon]
             for i in range(len(x)):
                 x_i = x[i]
@@ -65,6 +67,7 @@ def create_poly():
                 if point_in_poly(x_i, y_i, polygon) == True:
                     mark.append(m)
                     break
+        # if 'POLYGON' is the only string in the list, convert the coordinates to ICRS andsend the coordinates through point_in_poly_coord
         else:
             polygon = poly
             polygon = [float(i) for i in polygon]
