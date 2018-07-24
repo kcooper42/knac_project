@@ -11,11 +11,19 @@ from astropy.coordinates import SkyCoord
 import numpy as np
 import pandas as pd
 
+##List of source ras and decs for all chandra sources with names matching that of the resolved names ##
 data = pd.read_csv("chandraSources.csv")
+##Converts sources into readable dataframe
 chandraSources = pd.DataFrame(data)
-##resolvedName = pd.read_csv() ###
+## imports list of names of objects to preform query and download forr
+resolvedName = pd.read_csv("resolvedNamesNew.csv")
 
+
+## To download desired sources, must give function list of names from csv or just 1 name
 def dowload_sources(resolvedName):
+    """for each name in given list, performs MAST search for hubble data for that name and 
+    finds chandra sources for that object before filtering and downloading
+    all desired products to Volumes/galaxies"""
     for i in resolvedName:
         obsTable = Observations.query_criteria(objectname=i, calib_level=3, dataRights="public", obs_collection="HST", instrument_name=["ACS/WFC", "WFC3/UVIS"], em_min=[3e-07, 9.7e-07], em_max=[3e-07, 9.7e-07], filters=["%W"])
         chandraSources = chandraSources.loc[chandraSources['resolvedObject'] == i]
@@ -28,6 +36,7 @@ def dowload_sources(resolvedName):
 #x = chandraSources['sourceRA']
 #y = chandraSources['sourceDec']
 def create_poly():
+    """ marks each polygon for which there is a chandra source within it for download """
     m=0
     mark = []
     for m in range(len(obsTable)):
@@ -73,6 +82,7 @@ def create_poly():
 #polygon = polygon.replace(" ", ",")
 #polygon = np.fromstring(polygon, dtype=np.float, sep=',')
 def poly_icrs(poly):
+    """Converts polygon coordinates from fk5 to icrs to match chandra sources """
     n = len(poly)
     poly_ra = []
     poly_dec = []
@@ -135,15 +145,18 @@ def point_in_poly(x,y,poly):
     return inside
 
 def obs_id():
+    """ creates list of obsids corresponding to the polygons marked in create_poly """
     mark = create_poly()
     obs_id =[]
     for i in mark:
         obs_id.append(obsTable['obs_id'][i])
     return obs_id
 def filter_products():
+    """ filters the dataproducts for the given astroquery by obsids found in obs_id() and limits to only DRZ files
+    before downloading all filtered products to /Volumes/galaxies"""
     obsids = obs_id()
     obs = obsTable['obsid']
     dataProductsByID = Observations.get_product_list(obs)
     dataProductsByID = Observations.filter_products(dataProductsByID, obs_id=obsids, productSubGroupDescription="DRZ")
-    ##Observations.download_products(dataProductsByID) ## SPECIFY filepath!!!
+    ##Observations.download_products(dataProductsByID, /Volumes/galaxies/mastDownload/HST) ## SPECIFY filepath!!!
     ##print(len(dataProductsByID))
