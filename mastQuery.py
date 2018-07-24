@@ -11,10 +11,6 @@ from astropy.coordinates import SkyCoord
 import numpy as np
 import pandas as pd
 
-##List of source ras and decs for all chandra sources with names matching that of the resolved names ##
-data = pd.read_csv("chandraSources.csv")
-##Converts sources into readable dataframe
-chandraSources = pd.DataFrame(data)
 ## imports list of names of objects to preform query and download forr
 resolvedName = pd.read_csv("resolvedNamesNew.csv")
 
@@ -29,35 +25,53 @@ def is_float(string):
         return False
 
 ## To download desired sources, must give function list of names from csv or just 1 name
-def dowload_sources(resolvedName):
+def download_sources(resolvedName):
     """for each name in given list, performs MAST search for hubble data for that name and 
     finds chandra sources for that object before filtering and downloading
     all desired products to Volumes/galaxies"""
-    for i in resolvedName:
-        obsTable = Observations.query_criteria(objectname=i, calib_level=3, dataRights="public", obs_collection="HST", instrument_name=["ACS/WFC", "WFC3/UVIS"], em_min=[3e-07, 9.7e-07], em_max=[3e-07, 9.7e-07], filters=["%W"])
-        chandraSources = chandraSources.loc[chandraSources['resolvedObject'] == i]
+    ##List of source ras and decs for all chandra sources with names matching that of the resolved names ##
+    data = pd.read_csv("chandraSources.csv")
+    ##Converts sources into readable dataframe
+    sourceNames = pd.DataFrame(data)
+    df = pd.DataFrame([])
+    headerName = []
+    for name in resolvedName:
+        obsTable = Observations.query_criteria(objectname=name, calib_level=3, dataRights="public", obs_collection="HST", instrument_name=["ACS/WFC", "WFC3/UVIS"], em_min=[3e-07, 9.7e-07], em_max=[3e-07, 9.7e-07], filters=["%W"])
+        chandraSources = sourceNames.loc[sourceNames['resolvedObject'] == name]
+        chandraSources = chandraSources.reset_index(drop=True)
         x = chandraSources['sourceRA']
         y = chandraSources['sourceDec']
-        filter_products()
+        obsid = obs_id(obsTable, x, y)
+        df1 = pd.DataFrame(obsid)
+        filter_products(obsid, obsTable)
+        df = pd.concat([df, df1], ignore_index=True, axis=1)
+        if len(obsid) != 0:
+            headerName.append(name)      
+    df.to_csv('index_obsidNames.csv', header=headerName)
+    
+    
+    
+    
 #resolvedName = "MESSIER 083"
 #obsTable = Observations.query_criteria(objectname=resolvedName, calib_level=3, dataRights="public", obs_collection="HST", instrument_name=["ACS/WFC", "WFC3/UVIS"], em_min=[3e-07, 9.7e-07], em_max=[3e-07, 9.7e-07], filters=["%W"])
 #chandraSources = chandraSources.loc[chandraSources['resolvedObject'] == resolvedName]
+#chandraSources = chandraSources.reset_index(drop=True)
 #x = chandraSources['sourceRA']
 #y = chandraSources['sourceDec']
 
-def create_poly():
+def create_poly(table, x, y):
     """ marks each polygon for which there is a chandra source within it for download """
     m=0
     mark = []
-    for m in range(len(obsTable)):
-        poly = obsTable['s_region'][m]
+    for m in range(len(table)):
+        poly = table['s_region'][m]
         poly = poly.split()
         poly.pop(0)
         polygon = poly
         # if the item of the list after 'POLYGON' is not a float, send the coordinates through point_in_poly
-        if is_float(list[0]) == False:
+        if is_float(polygon[0]) == False:
             # pop all items at the beginning of the list that are not floats
-            while is_float(list[0]) == False:
+            while is_float(polygon[0]) == False:
                 polygon.pop(0)
             polygon = [float(i) for i in polygon]
             for i in range(len(x)):
@@ -68,8 +82,8 @@ def create_poly():
                     mark.append(m)
                     break
         # if 'POLYGON' is the only string in the list, convert the coordinates to ICRS andsend the coordinates through point_in_poly_coord
-        else:
-            polygon = poly
+        elif is_float(polygon[0]) == True:
+      #      polygon = poly
             polygon = [float(i) for i in polygon]
             poly_ra, poly_dec = poly_icrs(polygon)
             for i in range(len(x)):
@@ -150,20 +164,27 @@ def point_in_poly(x,y,poly):
         
     return inside
 
-def obs_id():
+def obs_id(table, x, y):
     """ creates list of obsids corresponding to the polygons marked in create_poly """
-    mark = create_poly()
+    mark = create_poly(table, x, y)
     obs_id =[]
     for i in mark:
-        obs_id.append(obsTable['obs_id'][i])
+        obs_id.append(table['obs_id'][i])
     return obs_id
-
-def filter_products():
+#def create_index(obsids):
+#    """takes obsids and appends marked obsids and resolved names to an array """
+#    index_obs = []
+#    index_name = []
+#    for val in obsids:
+#        index_obs.append(val)
+#        index_name.append(name)
+#    return [index_obs, index_name]
+def filter_products(obsids, table):
     """ filters the dataproducts for the given astroquery by obsids found in obs_id() and limits to only DRZ files
     before downloading all filtered products to /Volumes/galaxies"""
-    obsids = obs_id()
-    obs = obsTable['obsid']
+  ## move indexing obsids to another function
+    obs = table['obsid']
     dataProductsByID = Observations.get_product_list(obs)
     dataProductsByID = Observations.filter_products(dataProductsByID, obs_id=obsids, productSubGroupDescription="DRZ")
-    ##Observations.download_products(dataProductsByID, /Volumes/galaxies/mastDownload/HST) ## SPECIFY filepath!!!
+    Observations.download_products(dataProductsByID, "/Volumes/galaxies/mastDownload/HST") ## SPECIFY filepath!!!
     ##print(len(dataProductsByID))
