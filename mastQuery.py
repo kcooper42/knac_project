@@ -18,6 +18,15 @@ chandraSources = pd.DataFrame(data)
 ## imports list of names of objects to preform query and download forr
 resolvedName = pd.read_csv("resolvedNamesNew.csv")
 
+# test for if a string is a float
+def is_float(string):
+    """Returns True if string is a float (can be converted to a float without an error)
+    """
+    try:
+        float(string)
+        return True
+    except ValueError:
+        return False
 
 ## To download desired sources, must give function list of names from csv or just 1 name
 def dowload_sources(resolvedName):
@@ -35,6 +44,7 @@ def dowload_sources(resolvedName):
 #chandraSources = chandraSources.loc[chandraSources['resolvedObject'] == resolvedName]
 #x = chandraSources['sourceRA']
 #y = chandraSources['sourceDec']
+
 def create_poly():
     """ marks each polygon for which there is a chandra source within it for download """
     m=0
@@ -43,18 +53,8 @@ def create_poly():
         poly = obsTable['s_region'][m]
         poly = poly.split()
         poly.pop(0)
-        if poly[0] == "ICRS":
-            polygon = poly
-            polygon.pop(0)
-            polygon = [float(i) for i in polygon]
-            for i in range(len(x)):
-                x_i = x[i]
-                y_i = y[i]
-                point_in_poly(x_i, y_i, polygon)
-                if point_in_poly(x_i, y_i, polygon) == True:
-                    mark.append(m)
-                    break
-        elif poly[0] == "OTHER":
+        # check whether the new first item in the list is a float, and if not, pop it from the list
+        if is_float(list[0]) == False:
             polygon = poly
             polygon.pop(0)
             polygon = [float(i) for i in polygon]
@@ -81,6 +81,7 @@ def create_poly():
 #polygon = poly[8::]
 #polygon = polygon.replace(" ", ",")
 #polygon = np.fromstring(polygon, dtype=np.float, sep=',')
+
 def poly_icrs(poly):
     """Converts polygon coordinates from fk5 to icrs to match chandra sources """
     n = len(poly)
@@ -97,6 +98,7 @@ def poly_icrs(poly):
         poly_dec.append(dec)
     return poly_ra, poly_dec
 #poly_ra, poly_dec = poly_icrs(polygon)
+
 def point_in_poly_coord(x,y,poly_ra, poly_dec):
     """Returns True if (x,y) lies within poly and False otherwise.
     Where poly:= [ (x1,y1), (x2,y2), (x3,y3,...(xn,yn)] given by output of poly_icrs
@@ -121,6 +123,7 @@ def point_in_poly_coord(x,y,poly_ra, poly_dec):
         p1x, p1y = p2x, p2y
         
     return inside
+
 def point_in_poly(x,y,poly):
     """Returns True if (x,y) lies within poly and False otherwise.
     Where poly:= [ (x1,y1), (x2,y2), (x3,y3,...(xn,yn)]
@@ -151,6 +154,7 @@ def obs_id():
     for i in mark:
         obs_id.append(obsTable['obs_id'][i])
     return obs_id
+
 def filter_products():
     """ filters the dataproducts for the given astroquery by obsids found in obs_id() and limits to only DRZ files
     before downloading all filtered products to /Volumes/galaxies"""
