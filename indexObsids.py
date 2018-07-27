@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 
 data = pd.read_csv("index_obsidNames.csv")
+# unique HST obsids
 uniquenames = pd.read_csv("HST_obsids.csv")
 data = pd.DataFrame(data)
 
@@ -47,11 +48,13 @@ def find_sources():
     chandra = pd.read_csv("chandraSources.csv")
     sourceNames = pd.DataFrame(chandra)
     obsTable = Observations.query_criteria(obs_id=uniquenames[0], calib_level=3, dataRights="public", obs_collection="HST", instrument_name=["ACS/WFC", "WFC3/UVIS"], em_min=[3e-07, 9.7e-07], em_max=[3e-07, 9.7e-07], filters=["%W"])
+    # create list of obsids in the mast query obsTable
     obs = list(obsTable['obs_id'])
     overlap = pd.DataFrame(columns=('HST_obsid', 'sourceRA', 'sourceDec', 'objectName'))
     for obsid in uniquenames[0]:
         ### index number (number of iterations) = m
 #        m = uniquenames.loc[uniquenames[0] == obsid].index[0]
+        # set m equal to the index number at that obsid
         m = obs.index(obsid)
         x = []
         y = []
@@ -68,10 +71,12 @@ def find_sources():
         x = reduce(operator.concat, x)
         y = reduce(operator.concat, y)
         name = reduce(operator.concat, name)
+        # mark the chandra sources found in obsid (at the index m in obsTable)
         mark = overlap_index(obsTable, x, y, name, m, obsid)
         df = pd.DataFrame(mark, columns=('HST_obsid', 'sourceRA', 'sourceDec', 'objectName'))
         overlap = overlap.append(df, ignore_index=True)
     overlap.to_csv('sourceOverlapIndex.csv')
+    
 # test for if a string is a float
 def is_float(string):
     """Returns True if string is a float (can be converted to a float without an error)
@@ -81,10 +86,13 @@ def is_float(string):
         return True
     except ValueError:
         return False
-
           
 def overlap_index(table, x, y, name, m, obsid):
+    """From a given table, list of ra values (x), list of dec values (y), name list of resolved objects, specific m index of the table, and obsid
+    returns a list of 'marked' chandra sources found in each obsid
+    """
     mark = []
+    # index the polygon regions column with the same index the specific obsid was found at in obsTable
     poly = table['s_region'][m]
     poly = poly.split()
     poly.pop(0)
@@ -102,7 +110,6 @@ def overlap_index(table, x, y, name, m, obsid):
             point_in_poly(x_i, y_i, polygon)
             if point_in_poly(x_i, y_i, polygon) == True:
                 mark.append([obsid, x_i, y_i, n_i])    
-
         # if 'POLYGON' is the only string in the list, convert the coordinates to ICRS andsend the coordinates through point_in_poly_coord
     elif is_float(polygon[0]) == True:
       #      polygon = poly
